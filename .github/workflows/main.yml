@@ -18,8 +18,68 @@ permissions:
   id-token: write
 
 jobs:
-  hello:
-    name: Echo Hello World
+  lint:
+    name: Lint and Format
     runs-on: ubuntu-latest
     steps:
-      - run: echo Hello World
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Format
+        run: npm run format
+      - name: Commit if changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "style: format code"
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Test
+        run: npm run test
+
+  build:
+    name: Build
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Upload artifacts
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./build
+
+  cypress: 
+    name: Cypress
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Cypress run
+        uses: cypress-io/github-action@v4
+        with: 
+          start: npm run preview
+          wait-on: http://localhost:4173 
+  
+  deploy:
+    name: Deploy
+    needs: cypress
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
